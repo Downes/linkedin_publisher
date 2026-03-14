@@ -1,0 +1,15 @@
+services:
+  linkedin_publisher:
+    build: .
+    container_name: linkedin_publisher
+    env_file: .env
+    volumes:
+      - ./chrome_profile:/app/chrome_profile
+      - ./data:/app/data
+    networks:
+      - web
+    restart: unless-stopped
+
+networks:
+  web:
+    external: true

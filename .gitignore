@@ -1,0 +1,11 @@
+# Secrets
+.env
+
+# Persistent runtime data (mounted volumes)
+chrome_profile/
+data/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
