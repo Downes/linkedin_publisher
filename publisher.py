@@ -99,6 +99,31 @@ def sanitize(html_str, base_url):
     return "".join(str(c) for c in container.children if getattr(c, "name", None)).strip()
 
 
+def _make_footer():
+    year = datetime.now().year
+    return f"""<hr>
+<p>We publish six to eight or so short posts every weekday linking to the best, most interesting
+and most important pieces of content in the field. Read more about
+<a href="https://www.downes.ca/news/about_old.htm">what we cover</a>.
+We also list papers and articles by Stephen Downes and his presentations from around the world.</p>
+<p>There are many ways to read OLDaily; pick whatever works best for you:</p>
+<ul>
+<li>Read in your web browser on <a href="https://www.downes.ca/news/OLDaily.htm">this web page</a>, updated weekdays</li>
+<li>Receive a daily or weekly email newsletter by <a href="https://www.downes.ca/subscribe.htm">subscribing here</a></li>
+<li>Subscribe to the <a href="https://www.downes.ca/news/OLDaily.xml">RSS feed</a> using your favourite feed reader</li>
+<li>Follow <a href="https://mastodon.social/@oldaily">@OLDaily@mastodon.social</a> on Mastodon or elsewhere in the fediverse</li>
+<li>Follow <a href="https://bsky.app/profile/oldaily.bsky.social">@OLDaily</a> on Bluesky</li>
+<li>Read OLDaily as a <a href="https://www.linkedin.com/newsletters/7369381037719646208/">LinkedIn Newsletter</a></li>
+<li>Integrate the open API using the <a href="https://www.downes.ca/news/OLDaily.json">JSON feed</a></li>
+</ul>
+<p>Know a friend who might enjoy this newsletter? Feel free to forward OLDaily to your colleagues.
+If you received this issue from a friend and would like a free subscription of your own,
+you can join our mailing list. <a href="https://www.downes.ca/subscribe.htm">Click here to subscribe</a>.</p>
+<p>Copyright {year} Stephen Downes. Contact: <a href="mailto:stephen@downes.ca">stephen@downes.ca</a></p>
+<p>This work is licensed under a
+<a href="https://creativecommons.org/licenses/by-nc-sa/3.0/">Creative Commons License</a>.</p>"""
+
+
 def extract_content(html_text, source_url):
     """
     Parse OLDaily.htm and return (title, body_html).
@@ -131,15 +156,19 @@ def extract_content(html_text, source_url):
 
     body_parts = []
 
-    # Intro text ("Welcome to Online Learning Daily...")
+    # Intro + "100% human-authored" combined into one paragraph
+    intro_text = ""
     intro = email_page.find("div", style=lambda s: s and "font-size:small" in s)
     if intro:
-        body_parts.append(f"<p>{intro.get_text(strip=True)}</p>")
+        intro_text = intro.get_text(strip=True)
 
-    # "100% human-authored" bold tag
     for b in email_page.find_all("b"):
         if "100%" in b.get_text():
-            body_parts.append(f"<p><b>{b.get_text(strip=True)}</b></p>")
+            human_authored = b.get_text(strip=True)
+            if intro_text:
+                body_parts.append(f"<p>{intro_text} <b>{human_authored}</b></p>")
+            else:
+                body_parts.append(f"<p><b>{human_authored}</b></p>")
             break
 
     body_parts.append("<hr>")
@@ -157,7 +186,24 @@ def extract_content(html_text, source_url):
         # Separator divs (contain only an <hr>) and post content divs — keep both
         body_parts.append(str(child))
 
+    body_parts.append(_make_footer())
     body_html = sanitize("\n".join(body_parts), source_url)
+
+    # Post-processing: for each post div, add comma after title and remove
+    # the internal <hr> that separates the title/byline from the description
+    soup_body = BeautifulSoup(body_html, "lxml")
+    for div in soup_body.find_all("div"):
+        first_strong = div.find("strong")
+        if not (first_strong and first_strong.find("a")):
+            continue  # not a post div
+        first_strong.insert_after(NavigableString(","))
+        first_hr = div.find("hr")
+        if first_hr:
+            first_hr.decompose()
+    container = soup_body.body or soup_body
+    body_html = "".join(str(c) for c in container.children
+                        if getattr(c, "name", None)).strip()
+
     return title, body_html
 
 
