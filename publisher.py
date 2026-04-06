@@ -171,6 +171,12 @@ def extract_content(html_text, source_url):
                 body_parts.append(f"<p><b>{human_authored}</b></p>")
             break
 
+    body_parts.append('<div style="border: 1pt solid brown; padding: 0.75em 1em; line-height: 1.4;">'
+                      '  Support OLDaily. A paid subscription keeps OLDaily free and open for all. '
+                      '  We\'re now at <b>10%</b> of our May 15 target. '
+                      '  <a href="https://www.downes.ca/news/about_old.htm#support">Click here to support OLDaily.</a>'
+                      '</div>')
+
     body_parts.append("<hr>")
 
     # Post divs: collect all div children of email_page except header and intro
