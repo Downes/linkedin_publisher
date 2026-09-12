@@ -156,26 +156,17 @@ def extract_content(html_text, source_url):
 
     body_parts = []
 
-    # Intro + "100% human-authored" combined into one paragraph
-    intro_text = ""
+    # Intro paragraph — use inner HTML to preserve inline formatting like <b>100% human-authored</b>
     intro = email_page.find("div", style=lambda s: s and "font-size:small" in s)
     if intro:
-        intro_text = intro.get_text(strip=True)
-
-    for b in email_page.find_all("b"):
-        if "100%" in b.get_text():
-            human_authored = b.get_text(strip=True)
-            if intro_text:
-                body_parts.append(f"<p>{intro_text} <b>{human_authored}</b></p>")
-            else:
-                body_parts.append(f"<p><b>{human_authored}</b></p>")
-            break
-
-    body_parts.append('<div style="border: 1pt solid brown; padding: 0.75em 1em; line-height: 1.4;">'
-                      '  Support OLDaily. A paid subscription keeps OLDaily free and open for all. '
-                      '  We\'re now at <b>10%</b> of our May 15 target. '
-                      '  <a href="https://www.downes.ca/news/about_old.htm#support">Click here to support OLDaily.</a>'
-                      '</div>')
+        intro_inner = "".join(str(c) for c in intro.children).strip()
+        body_parts.append(f"<p>{intro_inner}</p>")
+    else:
+        # Fallback: look for the human-authored tag outside the intro div
+        for b in email_page.find_all("b"):
+            if "100%" in b.get_text():
+                body_parts.append(f"<p><b>{b.get_text(strip=True)}</b></p>")
+                break
 
     body_parts.append("<hr>")
 
@@ -585,19 +576,8 @@ def set_body(drv, html_body):
                 const el = arguments[0]; const html = arguments[1];
                 el.focus();
                 try { document.execCommand('selectAll', false, null); document.execCommand('delete', false, null); } catch(e){}
-                const sel = window.getSelection();
-                if (!sel.rangeCount) {
-                    const r = document.createRange();
-                    r.selectNodeContents(el); r.collapse(false);
-                    sel.removeAllRanges(); sel.addRange(r);
-                }
-                const range = sel.getRangeAt(0);
-                const tmp = document.createElement('div');
-                tmp.innerHTML = html;
-                const frag = document.createDocumentFragment();
-                while (tmp.firstChild) frag.appendChild(tmp.firstChild);
-                range.deleteContents();
-                range.insertNode(frag);
+                document.execCommand('insertHTML', false, html);
+                el.dispatchEvent(new InputEvent('input', {bubbles: true}));
             """, body, html_body)
             time.sleep(0.8)
             return
